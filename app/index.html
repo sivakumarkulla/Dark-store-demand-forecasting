@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restock control room</title>
+<style>
+  :root {
+    --bg: #101317; --panel: #181c22; --track: #232932; --line: #2a3038;
+    --text: #e7e9ec; --muted: #8b95a1; --soft: #b6bec8;
+    --teal: #2f9e83; --teal-hi: #2fbf8f; --amber: #e0a93b;
+    --red: #ff6b6b; --red-text: #ff8f8f; --red-bg: #3a1518; --red-line: #7a2a2f;
+    --ok-text: #7fe0bd; --ok-bg: #0f2a22; --blue: #3b82c4;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.4; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .eyebrow { font-size: 12px; color: var(--muted); }
+  h1 { font-size: 20px; font-weight: 500; margin: 0; }
+  .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted);
+          border: 0.5px solid var(--line); border-radius: 20px; padding: 5px 11px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+  button { font: inherit; font-size: 13px; color: var(--text); background: transparent; cursor: pointer;
+           border: 0.5px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+  button:hover { background: var(--panel); }
+  button:disabled { opacity: .5; cursor: default; }
+  .banner { border-radius: 8px; padding: 10px 12px; font-size: 14px; display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .banner.alert { background: var(--red-bg); border: 0.5px solid var(--red-line); color: #ffb4b4; }
+  .banner.ok { background: var(--ok-bg); border: 0.5px solid #1d5a46; color: var(--ok-text); }
+  .banner.neutral { background: var(--panel); border: 0.5px solid var(--line); color: var(--muted); }
+  .banner svg { width: 18px; height: 18px; flex: none; }
+  .layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--panel); border: 0.5px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+  .tag.alert { color: var(--red-text); background: var(--red-bg); }
+  .tag.ok { color: var(--ok-text); background: var(--ok-bg); }
+  .big { font-family: var(--mono); font-size: 30px; font-weight: 500; margin-top: 6px; }
+  .sub { font-size: 12px; color: var(--muted); }
+  .gauge { position: relative; height: 8px; background: var(--track); border-radius: 4px; margin: 14px 0 8px; }
+  .gauge .fill { position: absolute; left: 0; top: 0; height: 8px; background: var(--teal); border-radius: 4px; }
+  .gauge .mark { position: absolute; top: -4px; width: 2px; height: 16px; }
+  .wx { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .wx .bar-box { height: 28px; display: flex; align-items: flex-end; justify-content: center; margin: 4px 0; }
+  .wx .bar { width: 60%; background: var(--blue); border-radius: 2px; }
+  .wx .t { color: var(--text); }
+  .legend { font-size: 12px; color: var(--muted); }
+  .chips { display: flex; gap: 6px; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 20px; }
+  .chip.on { background: var(--track); color: var(--text); }
+  .feed { display: flex; flex-direction: column; gap: 12px; font-size: 13px; margin-top: 10px; }
+  .ev { display: flex; gap: 8px; }
+  .ev .dot { margin-top: 6px; }
+  .foot { border-top: 0.5px solid var(--line); margin-top: 14px; padding-top: 10px; font-size: 12px; color: var(--muted); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 16px; }
+  .err { color: var(--amber); font-size: 12px; }
+  .linkbtn { background: none; border: none; border-bottom: 1px dashed var(--muted); border-radius: 0; padding: 0;
+             color: var(--muted); font-size: 13px; cursor: pointer; }
+  .linkbtn:hover { background: none; color: var(--text); border-bottom-color: var(--text); }
+  .custom-tag { color: var(--amber); }
+  .stock-form { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+  .stock-form input { width: 84px; background: var(--track); color: var(--text); border: 0.5px solid var(--line);
+                      border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 13px; }
+  .stock-form button { padding: 4px 10px; font-size: 12px; }
+  .stock-actions { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Dark store 07 · Mumbai</div>
+      <h1>Restock control room</h1>
+    </div>
+    <div class="head-right">
+      <div class="pill" id="pill"><span class="dot" style="background:var(--muted)"></span><span>Loading</span></div>
+      <button id="run" title="Fetch the weather forecast, predict, and log a new check">Run check</button>
+    </div>
+  </header>
+
+  <div class="banner neutral" id="banner" aria-live="polite">Loading...</div>
+
+  <div class="layout">
+    <div class="col">
+      <div class="tiles" id="tiles"></div>
+      <div class="stock-actions" id="stock-actions"></div>
+
+      <div class="card">
+        <div class="row"><span>Weather, next 6 hours</span><span id="rain-total"></span></div>
+        <div id="wx"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span id="chart-title">Forecast vs actual</span>
+          <span class="chips" id="chips"></span>
+        </div>
+        <div id="chart"></div>
+        <div class="legend" style="margin-top:6px"><span style="color:var(--teal-hi)">- - -</span> p90 forecast &nbsp; <span style="color:var(--soft)">&mdash;&mdash;</span> actual &nbsp; (units in the next 6 hours, last 24 hours of data)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span>Recent alerts</span></div>
+      <div class="feed" id="feed"></div>
+      <div class="foot" id="foot"></div>
+    </div>
+  </div>
+
+  <div class="note">Simulated sales data with real Mumbai weather. Stock levels are simulated: click a stock number to set your own.</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2, "0");
+const hhmm = iso => { const d = new Date(iso); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+const state = { cat: null, status: null, editing: null, stockError: "" };
+
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || body.detail || ("HTTP " + r.status));
+  return body;
+}
+
+function dayLabel(iso) {
+  const d = new Date(iso), now = new Date();
+  const sod = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const diff = Math.round((sod(now) - sod(d)) / 86400000);
+  const t = hhmm(iso);
+  if (diff === 0) return "Today, " + t;
+  if (diff === 1) return "Yesterday, " + t;
+  if (diff > 1 && diff < 7) return d.toLocaleDateString("en-GB", { weekday: "short" }) + ", " + t;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ", " + t;
+}
+
+const WARN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 L22 20 H2 Z"/><path d="M12 10 V14"/><path d="M12 17 H12.01"/></svg>';
+
+function renderStatus(s) {
+  state.status = s;
+  const banner = $("banner"), pill = $("pill"), tiles = $("tiles");
+  if (!s.ready) {
+    banner.className = "banner neutral"; banner.textContent = s.message;
+    pill.innerHTML = '<span class="dot" style="background:var(--muted)"></span><span>No data yet</span>';
+    tiles.innerHTML = ""; $("stock-actions").innerHTML = ""; return;
+  }
+  const hits = s.items.filter(i => i.alert);
+  if (hits.length) {
+    banner.className = "banner alert";
+    banner.innerHTML = WARN_SVG + "<span>" + hits.length + (hits.length > 1 ? " alerts: " : " alert: ") +
+      hits.map(i => esc(i.label.toLowerCase()) + " is " + i.short + " units short").join(", ") +
+      " for the next 6 hours</span>";
+  } else {
+    banner.className = "banner ok";
+    banner.textContent = "All clear: every category has enough cover for the next 6 hours";
+  }
+
+  const ageH = (Date.now() - new Date(s.forecast_from).getTime()) / 3600000;
+  pill.innerHTML = ageH > 2
+    ? '<span class="dot" style="background:var(--amber)"></span><span>Last check ' + esc(dayLabel(s.forecast_from)) + '</span>'
+    : '<span class="dot" style="background:var(--teal-hi)"></span><span>Live · forecast from ' + esc(hhmm(s.forecast_from)) + '</span>';
+
+  tiles.innerHTML = s.items.map(i => {
+    const scale = Math.max(i.stock, i.need) * 1.07;
+    const fill = (i.stock / scale * 100).toFixed(1), mark = (i.need / scale * 100).toFixed(1);
+    const markColor = i.alert ? "var(--red)" : "var(--text)";
+    return '<div class="card">' +
+      '<div class="row"><span>' + esc(i.label) + '</span><span class="tag ' + (i.alert ? "alert" : "ok") + '">' + (i.alert ? "Alert" : "OK") + '</span></div>' +
+      '<div class="big">' + i.p90 + '</div><div class="sub">units, p90 forecast</div>' +
+      '<div class="gauge"><div class="fill" style="width:' + fill + '%"></div><div class="mark" style="left:' + mark + '%;background:' + markColor + '"></div></div>' +
+      '<div class="row"><span>' + (state.editing === i.category ? 'Stock ' + i.stock
+        : '<button type="button" class="linkbtn edit-stock" data-cat="' + esc(i.category) + '" title="Click to set your own stock level">Stock ' + i.stock + '</button>' +
+          (i.custom ? ' <span class="custom-tag">custom</span>' : '')) +
+      '</span><span style="color:' + (i.alert ? "var(--red-text)" : "var(--muted)") + '">Need ' + i.need + '</span></div>' +
+      (state.editing === i.category
+        ? '<form class="stock-form" data-cat="' + esc(i.category) + '"><input type="number" min="0" max="100000" step="10" value="' + i.stock + '" aria-label="Stock for ' + esc(i.label) + '">' +
+          '<button type="submit">Save</button><button type="button" class="cancel-stock">Cancel</button></form>' +
+          (state.stockError ? '<div class="err" style="margin-top:6px">' + esc(state.stockError) + '</div>' : "")
+        : "") +
+      '</div>';
+  }).join("");
+
+  tiles.querySelectorAll(".edit-stock").forEach(b => b.onclick = () => openEditor(b.dataset.cat));
+  tiles.querySelectorAll(".stock-form").forEach(f => {
+    f.onsubmit = e => { e.preventDefault(); saveStock(f.dataset.cat, f.querySelector("input").value); };
+    f.querySelector(".cancel-stock").onclick = closeEditor;
+    f.querySelector("input").onkeydown = e => { if (e.key === "Escape") closeEditor(); };
+  });
+  const anyCustom = s.items.some(i => i.custom);
+  $("stock-actions").innerHTML = anyCustom
+    ? '<button type="button" class="linkbtn" id="reset-stock">Reset stock to defaults</button>'
+    : "Click a stock number to set your own.";
+  if (anyCustom) $("reset-stock").onclick = resetStock;
+
+  $("chips").innerHTML = s.items.map(i =>
+    '<button class="chip ' + (i.category === state.cat ? "on" : "") + '" data-cat="' + esc(i.category) + '">' + esc(i.label) + '</button>').join("");
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => { state.cat = b.dataset.cat; load(); });
+}
+
+function focusEditor(value) {
+  const inp = $("tiles").querySelector(".stock-form input");
+  if (inp) { if (value !== undefined) inp.value = value; inp.focus(); inp.select(); }
+}
+function openEditor(cat) { state.editing = cat; state.stockError = ""; renderStatus(state.status); focusEditor(); }
+function closeEditor() { state.editing = null; state.stockError = ""; renderStatus(state.status); }
+
+async function saveStock(cat, raw) {
+  const units = Number(raw);
+  if (raw === "" || !Number.isInteger(units) || units < 0 || units > 100000) {
+    state.stockError = "Enter a whole number from 0 to 100,000."; renderStatus(state.status); focusEditor(raw); return;
+  }
+  try {
+    await getJSON("/api/stock", { method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ category: cat, units: units }) });
+    state.editing = null; state.stockError = "";
+    await load();
+  } catch (e) { state.stockError = e.message; renderStatus(state.status); focusEditor(raw); }
+}
+
+async function resetStock() {
+  try { await getJSON("/api/stock/reset", { method: "POST" }); state.editing = null; await load(); }
+  catch (e) { $("stock-actions").textContent = "Could not reset: " + e.message; }
+}
+
+function renderWeather(w) {
+  const box = $("wx");
+  if (!w.hours || !w.hours.length) {
+    $("rain-total").textContent = "";
+    box.innerHTML = '<div class="err" style="margin-top:8px">Weather forecast unavailable' + (w.error ? ": " + esc(w.error) : "") + '</div>';
+    return;
+  }
+  const total = w.hours.reduce((a, h) => a + h.rain, 0);
+  $("rain-total").textContent = "Rain " + total.toFixed(1) + " mm";
+  box.innerHTML = '<div class="wx">' + w.hours.map(h =>
+    '<div>' + esc(h.label) + '<div class="bar-box"><div class="bar" style="height:' + Math.max(3, Math.min(28, h.rain * 6)) + 'px"></div></div><span class="t">' + h.temp + '°</span></div>').join("") + '</div>';
+}
+
+function renderChart(d) {
+  $("chart-title").textContent = d.label + ": forecast vs actual";
+  const n = d.times.length;
+  if (n < 2) { $("chart").innerHTML = '<div class="err">Not enough data</div>'; return; }
+  const W = 400, H = 90, top = 8, bot = 10;
+  const all = d.actual.concat(d.p90), lo = Math.min(...all), hi = Math.max(...all);
+  const x = i => (i / (n - 1) * W).toFixed(1);
+  const y = v => (H - bot - (v - lo) / ((hi - lo) || 1) * (H - bot - top)).toFixed(1);
+  const poly = arr => arr.map((v, i) => x(i) + "," + y(v)).join(" ");
+  $("chart").innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Line chart comparing actual demand with the p90 forecast">' +
+    '<line x1="0" y1="' + (H - bot) + '" x2="' + W + '" y2="' + (H - bot) + '" stroke="#2a3038"/>' +
+    '<polyline points="' + poly(d.actual) + '" fill="none" stroke="#b6bec8" stroke-width="2" stroke-linejoin="round"/>' +
+    '<polyline points="' + poly(d.p90) + '" fill="none" stroke="#2fbf8f" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/></svg>';
+}
+
+function renderFeed(a, b) {
+  $("feed").innerHTML = a.events.length ? a.events.map(e =>
+    '<div class="ev"><span class="dot" style="background:' + (e.kind === "alert" ? "var(--red)" : "var(--teal-hi)") + '"></span>' +
+    '<div>' + esc(e.text) + '<div class="sub">' + esc(dayLabel(e.time)) + '</div></div></div>').join("")
+    : '<div class="sub">No checks logged yet.</div>';
+  $("foot").textContent = b && b.ready
+    ? "Backtest: lost sales down " + b.median + "% vs a fixed reorder point (median), better in " + b.wins + " of " + b.n + " scenarios. Simulated."
+    : "Run python src/backtest.py to see backtest results here.";
+}
+
+async function load() {
+  const [s, a, w, b] = await Promise.allSettled([
+    getJSON("/api/status"), getJSON("/api/alerts"), getJSON("/api/weather"), getJSON("/api/backtest")]);
+
+  if (s.status === "fulfilled") {
+    if (!state.cat && s.value.ready && s.value.items.length) {
+      const hit = s.value.items.find(i => i.alert) || s.value.items[0];
+      state.cat = hit.category;
+    }
+    renderStatus(s.value);
+  } else {
+    $("banner").className = "banner neutral"; $("banner").textContent = "Could not load status: " + s.reason.message;
+  }
+  renderFeed(a.status === "fulfilled" ? a.value : { events: [] }, b.status === "fulfilled" ? b.value : null);
+  renderWeather(w.status === "fulfilled" ? w.value : { hours: [], error: w.reason.message });
+
+  if (state.cat) {
+    try { renderChart(await getJSON("/api/forecast?category=" + encodeURIComponent(state.cat) + "&hours=24")); }
+    catch (e) { $("chart").innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+}
+
+$("run").onclick = async () => {
+  const btn = $("run"); btn.disabled = true; btn.textContent = "Checking...";
+  try { await getJSON("/api/check", { method: "POST" }); }
+  catch (e) { $("banner").className = "banner neutral"; $("banner").textContent = "Check failed: " + e.message; btn.disabled = false; btn.textContent = "Run check"; return; }
+  await load(); btn.disabled = false; btn.textContent = "Run check";
+};
+
+load();
+setInterval(() => { if (!state.editing) load(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
